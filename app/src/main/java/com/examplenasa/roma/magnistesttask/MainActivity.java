@@ -1,103 +1,121 @@
 package com.examplenasa.roma.magnistesttask;
 
-import android.os.AsyncTask;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.Toast;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 
 
 public class MainActivity extends ActionBarActivity {
 
+
+
     public static String LOG_TAG = "my_log";
+    ArrayList<String> listOHLC;
+
+    private AutoCompleteTextView textViewTicker;
+
+    private ListView listViewOHLC;
+    private  Spinner spinner;
+    private Button buttonOk;
+
+    DataFieds dataFieds;
+    ArrayAdapter<String> listAdapter;
+
+
+    String[] example = new String[]{
+            "AAPL", "ABM", "ACE", "AMD"
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        new ParseTask().execute();
+
+        addSpinner();
+
+
+        ArrayAdapter<String> adapterTextViewTicker = new ArrayAdapter<String>
+                (this, android.R.layout.select_dialog_item, example);
+        textViewTicker = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextViewTicker);
+        textViewTicker.setAdapter(adapterTextViewTicker);
+
+        buttonOk = (Button) findViewById(R.id.okButton);
+        View.OnClickListener listenerTickers = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+         readResponce();
+            }
+        };
+        buttonOk.setOnClickListener(listenerTickers);
+
+        dataFieds  = new DataFieds();
+
+
+
+
     }
 
-    private class ParseTask extends AsyncTask<Void, Void, String> {
+    private void addSpinner(){
+        String[] dataFeeds = {"Quandl.com", "not available in this version :("};
+        ArrayAdapter<String> adapterSpiner = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, dataFeeds);
+        adapterSpiner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
-        HttpURLConnection urlConnection = null;
-        BufferedReader reader = null;
-        String resultJson = "";
+        spinner = (Spinner) findViewById(R.id.spinner);
+        spinner.setAdapter(adapterSpiner);
 
-        @Override
-        protected String doInBackground(Void... params) {
+         spinner.setPrompt("Select datafeed");
 
-            try {
-                URL url = new URL("https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?ticker=AMD&qopts.columns=Date,Open,High,Low,Close&api_key=He-mBpEmpDsBsUy3zszs");
-
-                String u = url.toString();
-
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.connect();
-
-                Log.d(LOG_TAG, u);
-
-                InputStream inputStream = urlConnection.getInputStream();
-                StringBuffer buffer = new StringBuffer();
-
-                reader = new BufferedReader(new InputStreamReader(inputStream));
-
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    buffer.append(line);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view,
+                                       int position, long id) {
+                if(position == 1) {
+                    Toast.makeText(getBaseContext(), "Sorry :(", Toast.LENGTH_SHORT).show();
+                    spinner.setSelection(0);
                 }
-
-                resultJson = buffer.toString();
-
-            } catch (Exception e) {
-                e.printStackTrace();
             }
-            return resultJson;
-        }
-
-        @Override
-        protected void onPostExecute(String strJson) {
-            super.onPostExecute(strJson);
-
-
-            JSONObject dataJsonObj = null;
-
-
-            try {
-                dataJsonObj = new JSONObject(strJson);
-
-                JSONObject datatable = dataJsonObj.getJSONObject("datatable");
-
-                JSONArray data = datatable.getJSONArray("data");
-
-                for (int i = 0; i < data.length(); i++) {
-                JSONArray jsonArray = data.getJSONArray(i);
-
-
-                String date = jsonArray.getString(1);
-                    Log.d(LOG_TAG, "One: " + date);
-                }
-
-
-
-                String tst = data.toString();
-
-
-
-
-            } catch (JSONException e) {
-                e.printStackTrace();
+            @Override
+            public void onNothingSelected(AdapterView<?> arg0) {
             }
-        }
+        });
     }
+
+
+    private void readResponce(){
+        String a = textViewTicker.getText().toString();
+
+        dataFieds  = new DataFieds();
+
+        listViewOHLC =  (ListView) findViewById(R.id.listViewOHLC);
+
+        dataFieds.execute(a);
+
+        try {
+            listOHLC = dataFieds.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        if(listOHLC.isEmpty()){
+          Toast.makeText(getApplicationContext(), "Wrong name!", Toast.LENGTH_SHORT).show();
+        }
+
+        listAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, listOHLC);
+        listViewOHLC.setAdapter(listAdapter);
+
+         Log.d(LOG_TAG,"test "+ listOHLC);
+    }
+
+
 }
